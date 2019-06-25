@@ -1,0 +1,108 @@
+- name: Install Base Dependencies
+  apt: 
+    name: ['apt-transport-https','ca-certificates','curl','build-essential','git','software-properties-common','openvswitch-switch','htop'] 
+    state: present
+
+- name: Stop Apparmor
+  command: /etc/init.d/apparmor stop
+
+- name: Remove Apparmor
+  command: update-rc.d -f apparmor remove
+
+- name: Check is ufw installed
+  shell: command -v ufw >/dev/null 2>&1
+  register: is_ufw_exist
+  ignore_errors: yes
+
+- name: Disabling ufw
+  command: ufw disable
+  become: yes
+  when: is_ufw_exist.rc == 0
+
+- name: Set ip forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: 1
+    sysctl_set: yes
+
+- name: Set bridged ipv4 permission
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: 262144
+    sysctl_set: yes
+
+- name: Gather exsting package versions
+  package_facts:
+    manager: auto
+  
+- name: Determine kube package versions
+  set_fact:
+    kubectl_ok: "{{ ansible_facts.packages is defined and 'kubectl' in ansible_facts.packages and ansible_facts.packages['kubectl']|length>0 and 'version' in ansible_facts.packages['kubectl'][0] and ansible_facts.packages['kubectl'][0]['version'] == kubectl_version }}"
+    kubeadm_ok: "{{ ansible_facts.packages is defined and 'kubeadm' in ansible_facts.packages and ansible_facts.packages['kubeadm']|length>0 and 'version' in ansible_facts.packages['kubeadm'][0] and ansible_facts.packages['kubeadm'][0]['version'] == kubeadm_version }}"
+    kubelet_ok: "{{ ansible_facts.packages is defined and 'kubelet' in ansible_facts.packages and ansible_facts.packages['kubelet']|length>0 and 'version' in ansible_facts.packages['kubelet'][0] and ansible_facts.packages['kubelet'][0]['version'] == kubelet_version }}"
+    kubecni_ok: "{{ ansible_facts.packages is defined and 'kubernetes-cni' in ansible_facts.packages and ansible_facts.packages['kubernetes-cni']|length>0 and 'version' in ansible_facts.packages['kubernetes-cni'][0] and ansible_facts.packages['kubernetes-cni'][0]['version'] == kubecni_version }}"
+    uninstall_list: "{{ [] }}"
+    install_list: "{{ [] }}"
+    kubectl_install_str: "kubectl={{ kubectl_version }}"
+    kubeadm_install_str: "kubeadm={{ kubeadm_version }}"
+    kubelet_install_str: "kubelet={{ kubelet_version }}"
+    kubecni_install_str: "kubernetes-cni={{ kubecni_version }}"
+
+- name: Schedule Kubectl for re-install
+  set_fact:
+    uninstall_list: "{{ uninstall_list + ['kubectl'] }}"
+    install_list: "{{ install_list + [kubectl_install_str] }}"
+  when: kubectl_ok == False
+
+- name: Schedule Kubeadm for re-install
+  set_fact:
+    uninstall_list: "{{ uninstall_list + ['kubeadm'] }}"
+    install_list: "{{ install_list + [kubeadm_install_str] }}"
+  when: kubeadm_ok == False
+
+- name: Schedule Kubelet for re-install
+  set_fact:
+    uninstall_list: "{{ uninstall_list + ['kubelet'] }}"
+    install_list: "{{ install_list + [kubelet_install_str] }}"
+  when: kubelet_ok == False
+
+- name: Schedule Kubernetes-cni for re-install
+  set_fact:
+    uninstall_list: "{{ uninstall_list + ['kubernetes-cni'] }}"
+    install_list: "{{ install_list + [kubecni_install_str] }}"
+  when: kubecni_ok == False
+
+- name: Uninstall existing versions
+  apt:
+    name: "{{uninstall_list}}"
+    state: absent
+  when: uninstall_list|length>0
+
+- name: Add Kubernetes apt signing key
+  apt_key: 
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+  when: install_list|length>0
+
+- name: Add Kubernetes apt repository
+  apt_repository:
+    repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+  when: install_list|length>0
+
+- name: Install Kube packages
+  apt: 
+    name: "{{install_list}}"
+    state: present 
+    update_cache: yes
+  when: install_list|length>0
+
+- name: Ensure kubelet is enabled at boot
+  service:
+    name: kubelet
+    state: started
+    enabled: true
+
+- name: Disable Swap
+  command: swapoff -a
+

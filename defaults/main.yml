@@ -1,0 +1,18 @@
+kubecni_version: "0.6.0-00"
+kubectl_version: "1.10.6-00"
+kubeadm_version: "1.10.6-00"
+kubelet_version: "1.10.6-00"
+
+# Allow pods to run on Master
+kubeadm_taint_master: True
+
+# In a multi network interface server you can specify which ip address to bind kubeadm to, otherwise comment this variable out
+# and the default IP address discovered by Ansible will be used
+#kubeadm_advertise_address: 
+
+# With a vagrant environment the first network interface is used by Vagrant. The network interface to bind kubeadm to must be specified here, e.g. eth1.
+# If provisioning a non-vagrant AIO environment change this variable to the main network interface or comment out and Ansible will use the default interface name.
+#flannel_interface: "eth1"
+
+# Enable to install Kubernetes dashboard
+kube_dashboard: False
