@@ -1,6 +1,6 @@
 # Ansible Role - Kubeadm
 
-Ansible role to install Kubeadm, Kubelet, Kubectl and Kubernetes-cni (with apt). Also includes option to install the Kubernetes dashboard.
+Ansible role to install Kubeadm, Kubelet, Kubectl and Kubernetes-cni (with apt). Includes option to install the Kubernetes dashboard.
 
 ## Configure Versions
 
