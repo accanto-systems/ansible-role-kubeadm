@@ -3,6 +3,9 @@ kubectl_version: "1.10.6-00"
 kubeadm_version: "1.10.6-00"
 kubelet_version: "1.10.6-00"
 
+# Switch to "worker" to install a worker node to join a cluster. Expects that the "master" node has already been setup by this role in the same playbook
+kubeadm_role: "master"
+
 # Allow pods to run on Master
 kubeadm_taint_master: True
 

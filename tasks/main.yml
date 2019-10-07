@@ -1,2 +1,5 @@
 - import_tasks: install.yml
-- import_tasks: start.yml
+- import_tasks: start-master.yml
+  when: kubeadm_role == "master"
+- import_tasks: start-worker.yml
+  when: kubeadm_role == "worker"

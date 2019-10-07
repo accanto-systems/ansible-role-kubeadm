@@ -21,6 +21,19 @@
 - name: Create Flannel network
   command: kubectl apply -f /tmp/flannel.yml
 
+- name: Get the kubeadm join command from master
+  command: kubeadm token create --print-join-command
+  changed_when: false
+  register: kubernetes_join_command_result
+
+- name: Share the kubeadm join to all other hosts
+  set_fact:
+    kubernetes_join_command: "{{ kubernetes_join_command_result.stdout }}"
+  when: kubernetes_join_command_result.stdout is defined
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+  with_items: "{{ groups['all'] }}"
+
 - name: Taint Kubeadm master
   command: kubectl taint nodes --all node-role.kubernetes.io/master-
   failed_when: false
@@ -29,9 +42,3 @@
 - name: Start Dashboard
   import_tasks: start-dashboard.yml
   when: kube_dashboard|default(False)|bool == True
-
-#  when: inventory_hostname not in groups.kubeadm_workers|default([])
-#  Needs work to check if worker is already joined
-#- name: Start Kubeadm (Worker)
-#  import_tasks: start-worker.yml
-#  when: inventory_hostname in groups.kubeadm_workers|default([])
